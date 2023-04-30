@@ -1,4 +1,50 @@
-import math
+import sys, pip, subprocess
+
+
+
+missing = 0
+try:
+    from matplotlib.pyplot import *
+    from matplotlib import *
+
+    missing = 1
+    from networkx import *
+
+except:
+    try:
+        if not missing:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "matplotlib"])
+
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "networkx"])
+            from matplotlib.pyplot import *
+            from matplotlib import *
+            from networkx import *
+        else:
+
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "networkx"])
+            from networkx import *
+
+
+    except:
+        if hasattr(pip, 'main'):
+            if not missing:
+                pip.main(['install', 'matplotlib'])
+
+                pip.main(['install', 'networkx'])
+            else:
+
+                pip.main(['install', 'networkx'])
+        else:
+            if not missing:
+                pip._internal.main(['install', 'matplotlib'])
+
+                pip._internal.main(['install', 'networkx'])
+            else:
+
+                pip._internal.main(['install', 'networkx'])
+        from matplotlib.pyplot import *
+        from matplotlib import *
+        from networkx import *
 
 
 class BSTNode:
@@ -274,11 +320,11 @@ class AVLTree(BinarySearchTree):
         '''
         super().__init__()
         self.graph = None
+        self.node_list = []
         self.level_lister=[]
         self.pre_lister=[]
         self.post_lister=[]
         self.in_lister=[]
-
     def put(self, data):
         '''
 
@@ -577,8 +623,78 @@ class AVLTree(BinarySearchTree):
         self.in_lister.append(node.data)
         print(str(node.data) + "(%d)" % (node.balance_factor))
         self.in_order_traversal_helper(node.right_child)
+
+    def hierarchy_pos(self,G, root, width=1., vert_gap=0.2, vert_loc=0, xcenter=0.5):
+        import networkx as nx
+        import random
+
+        if not nx.is_tree(G):
+            raise TypeError('cannot use hierarchy_pos on a graph that is not a tree')
+
+        if root is None:
+            if isinstance(G, nx.DiGraph):
+                root = next(iter(nx.topological_sort(G)))  # allows back compatibility with nx version 1.11
+            else:
+                root = random.choice(list(G.nodes))
+
+        def _hierarchy_pos(G, root, width=1.0, vert_gap=0.2, vert_loc=0, xcenter=0.5, pos=None, parent=None):
+            '''
+            see hierarchy_pos docstring for most arguments
+
+            pos: a dict saying where all nodes go if they have been assigned
+            parent: parent of this branch. - only affects it if non-directed
+
+            '''
+
+            if pos is None:
+                pos = {root: (xcenter, vert_loc)}
+            else:
+                pos[root] = (xcenter, vert_loc)
+            children = list(G.neighbors(root))
+            if not isinstance(G, nx.DiGraph) and parent is not None:
+                children.remove(parent)
+            if len(children) != 0:
+                dx = width / len(children)
+                nextx = xcenter - width / 2 - dx / 2
+                for child in children:
+                    nextx += dx
+                    pos = _hierarchy_pos(G, child, width=dx, vert_gap=vert_gap,
+                                         vert_loc=vert_loc - vert_gap, xcenter=nextx,
+                                         pos=pos, parent=root)
+            return pos
+
+        return _hierarchy_pos(G, root, width, vert_gap, vert_loc, xcenter)
+
     def visualize(self, file_name):
-        pass
+        self.graph = Graph()
+        self.graph.add_node(self.root.data)
+        self.node_list.append(self.root)
+        self.visualize_helper(self.root)
+
+        node=list(self.graph.nodes)[0]
+        pos = self.hierarchy_pos(self.graph, root=node, width=0.5)
+        # print("Dictionary: ", pos)
+        # print("We could maybe tweak this and then get a possible representation:", pos)
+        drawing.draw(self.graph, pos, with_labels=True)
+        plot()
+        savefig(file_name)
+        show()
+
+    def visualize_helper(self,node):
+        if node is None:
+            return
+        self.visualize_helper(node.left_child)
+        self.visualize_helper(node.right_child)
+        if node is not self.root:
+            self.graph.add_edge(node.data,node.parent.data)
+
+        # else:return
+
+
+
+
+
+
 def main():
     mytree = AVLTree()
 
@@ -603,6 +719,7 @@ def main():
 
     print("level-order traversal:")
     mytree.level_order_traversal()
+    mytree.visualize("tree_resulting_from_insertions.pdf")
 
     print("get method result: ", end=" ")
     print(mytree.get(122))
@@ -613,12 +730,14 @@ def main():
 
     print("level-order traversal after deleting 122:")
     mytree.level_order_traversal()
+    mytree.visualize("tree_after_first_deletion.pdf")
 
     print("deleting 131")
     mytree.delete(131)
 
     print("level-order traversal after deleting 131:")
     mytree.level_order_traversal()
+    mytree.visualize("tree_after_second_deletion.pdf")
 
 if __name__ =="__main__":
     main()
